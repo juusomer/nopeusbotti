@@ -44,7 +44,7 @@ Additionally, the following Twitter API credentials must be provided as environm
 
 The "Essential" access category is sufficient to run the bot: API v1.1 is used for posting the images, and v2 for the actual tweets. See https://developer.twitter.com/en/portal/petition/essential/basic-info for more information.
 
-The bot tracks buses heading to specific stops within an area defined by maximum and minimum lat/long values. The stops are defined with their ids, which can be checked from e.g. [Reittiopas](https://reittiopas.hsl.fi). For example the stop Tikkurilan lukio (V6231) has the id `4620231`, as it's Reittiopas URL is reittiopas.hsl.fi/pysakit/HSL%3A**4620231**.
+The bot tracks buses heading to specific stops within an area defined by maximum and minimum lat/long values. The stops are defined with their ids, which can be checked from e.g. [Reittiopas](https://reittiopas.hsl.fi). For example the stop Tikkurilan lukio (V6231) has the id `4620231`, as its Reittiopas URL is reittiopas.hsl.fi/pysakit/HSL%3A**4620231**.
 
 The following command
 
