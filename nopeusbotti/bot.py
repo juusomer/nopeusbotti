@@ -115,6 +115,7 @@ class Bot:
         plt.suptitle(title)
         filename = f"{uuid.uuid4()}.png"
         plt.savefig(filename)
+        plt.close()
         self.logger.info(f"Plotted route to {filename}")
         return filename, title
 
