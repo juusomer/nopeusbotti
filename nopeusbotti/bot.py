@@ -23,15 +23,22 @@ class Area:
 
 
 class Bot:
-    def __init__(self, area, stop_ids):
+    def __init__(self, area, stop_ids, send_tweets):
         self.area = area
         self.stop_ids = stop_ids
         self.messages = collections.defaultdict(list)
-        self.access_token = os.environ["ACCESS_TOKEN"]
-        self.access_token_secret = os.environ["ACCESS_TOKEN_SECRET"]
-        self.api_key = os.environ["API_KEY"]
-        self.api_key_secret = os.environ["API_KEY_SECRET"]
+        self.send_tweets = send_tweets
         self.logger = logging.getLogger(__name__)
+
+        if self.send_tweets:
+            self.access_token = os.environ["ACCESS_TOKEN"]
+            self.access_token_secret = os.environ["ACCESS_TOKEN_SECRET"]
+            self.api_key = os.environ["API_KEY"]
+            self.api_key_secret = os.environ["API_KEY_SECRET"]
+        else:
+            self.logger.info(
+                "Run with --no-tweets: only producing figures, will not send any tweets"
+            )
 
     def get_mqtt_topic(self, stop_id):
         return f"/hfp/v2/journey/ongoing/vp/bus/+/+/+/+/+/+/{stop_id}/#"
@@ -62,8 +69,9 @@ class Bot:
             route_data = self.to_df(self.messages.pop(key))
             route_data = route_data.assign(route_name=self.get_route_name(topic))
             filename, title = self.plot_route_to_file(route_data)
-            self.post_route_to_twitter(filename, title)
-            self.remove_file(filename)
+            if self.send_tweets:
+                self.post_route_to_twitter(filename, title)
+                self.remove_file(filename)
 
     def on_message(self, client, userdata, msg):
         try:

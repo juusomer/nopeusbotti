@@ -50,9 +50,15 @@ plt.style.use("seaborn-darkgrid")
     multiple=True,
     required=True,
 )
-def main(north, south, east, west, speed_limit, stop_id):
+@click.option(
+    "--no-tweets",
+    help="If set, do not send any tweets, only produce the figures (for testing purposes).",
+    is_flag=True,
+    default=False,
+)
+def main(north, south, east, west, speed_limit, stop_id, no_tweets):
     area = Area(north, south, east, west, speed_limit)
-    bot = Bot(area, stop_id)
+    bot = Bot(area, stop_id, send_tweets=not no_tweets)
     client = mqtt.Client()
     client.tls_set()
     client.on_connect = bot.on_connect

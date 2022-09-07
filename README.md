@@ -33,10 +33,12 @@ Options:
   --speed-limit FLOAT  Speed limit withing the monitored area  [required]
   --stop-id TEXT       The stops ids to track. This option can be repeated as
                        many times as needed.  [required]
+  --no-tweets          If set, do not send any tweets, only produce the
+                       figures (for testing purposes).
   --help               Show this message and exit.
 ```
 
-Additionally, the following Twitter API credentials must be provided as environment variables:
+Unless `--no-tweets` is set, the following Twitter API credentials must be provided as environment variables:
 - `ACCESS_TOKEN`
 - `ACCESS_TOKEN_SECRET`
 - `API_KEY`
