@@ -4,7 +4,6 @@ import logging
 import os
 from dataclasses import dataclass
 
-import pandas as pd
 import tweepy
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -83,9 +82,9 @@ class Bot:
 
         elif self.messages[key]:
             self.logger.info(f"{key} has left the area, plotting route")
-            route_data = self.to_df(self.messages.pop(key))
-            route_data = route_data.assign(route_name=self.get_route_name(topic))
-            filename, title = plot_route_to_file(route_data, self.area)
+            route_data = self.messages.pop(key)
+            route_name = self.get_route_name(topic)
+            filename, title = plot_route_to_file(route_name, route_data, self.area)
             self.logger.info(f"Saved plot to {filename}")
             if self.send_tweets:
                 self.post_route_to_twitter(filename, title)
@@ -107,22 +106,6 @@ class Bot:
             )
         except TypeError:
             return False
-
-    def to_df(self, position_messages):
-        df = pd.DataFrame(position_messages)
-        columns = {
-            "desi": "route_number",
-            "tst": "time",
-            "spd": "speed",
-            "lat": "lat",
-            "long": "long",
-            "oday": "operating_day",
-            "start": "start_time",
-        }
-        df = df[columns.keys()].rename(columns=columns)
-        df.loc[:, "time"] = pd.to_datetime(df.time).dt.tz_convert("EET")
-        df = df.sort_values("time")
-        return df
 
     def post_route_to_twitter(self, filename, title):
         self.logger.info(f"Posting {filename} to Twitter")
