@@ -31,7 +31,7 @@ Options:
   --west FLOAT         The westernmost longitude coordinate of the monitored
                        area  [required]
   --speed-limit FLOAT  Speed limit withing the monitored area  [required]
-  --stop-id TEXT       The stops ids to track. This option can be repeated as
+  --route TEXT         The routes to track. This option can be repeated as
                        many times as needed.  [required]
   --no-tweets          If set, do not send any tweets, only produce the
                        figures (for testing purposes).
