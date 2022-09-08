@@ -32,7 +32,6 @@ def to_png(folium_map, delay=0.1):
 def plot_route_map(route_data, center, speed_limit, as_png=True):
     m = folium.Map(
         location=center,
-        zoom_start=17,
         height=400,
         width=400,
         zoom_control=not as_png,
@@ -74,6 +73,10 @@ def plot_route_map(route_data, center, speed_limit, as_png=True):
         fill=True,
         fill_opacity=1,
     ).add_to(m)
+
+    sw = route_data[["lat", "long"]].min().values.tolist()
+    ne = route_data[["lat", "long"]].max().values.tolist()
+    m.fit_bounds([sw, ne])
 
     return m if not as_png else to_png(m)
 
