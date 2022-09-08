@@ -1,5 +1,4 @@
 import collections
-import datetime
 import json
 import logging
 import os
@@ -102,10 +101,7 @@ class Bot:
             "start": "start_time",
         }
         df = df[columns.keys()].rename(columns=columns)
-        local_timezone = (
-            datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-        )
-        df.loc[:, "time"] = pd.to_datetime(df.time).dt.tz_convert(local_timezone)
+        df.loc[:, "time"] = pd.to_datetime(df.time).dt.tz_convert("EET")
         df = df.sort_values("time")
         return df
 
