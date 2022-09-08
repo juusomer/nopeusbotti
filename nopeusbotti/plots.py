@@ -12,6 +12,7 @@ def plot_route_to_file(route_name, position_messages, area):
     title = get_title(route_name, route_data, area)
     filename = f"{uuid.uuid4()}.png"
     plot_route_speed_and_map(route_data, area)
+    plt.tight_layout()
     plt.suptitle(title)
     plt.savefig(filename)
     plt.close()
@@ -55,7 +56,7 @@ def plot_route_map(route_data, area, ax):
         ll=True,
         source=ctx.providers.OpenStreetMap.Mapnik,
     )
-    ax.imshow(img, extent=ext)
+    ax.imshow(img, extent=ext, interpolation="sinc", aspect="equal")
 
     speed_limit = area.speed_limit
     ax.plot(route_data.plot_x, route_data.plot_y, "o-")
@@ -65,16 +66,16 @@ def plot_route_map(route_data, area, ax):
         "ro",
     )
 
-    arrow_x = route_data.iloc[-2].plot_x
-    arrow_y = route_data.iloc[-2].plot_y
-    dx = route_data.iloc[-1].plot_x - arrow_x
-    dy = route_data.iloc[-1].plot_y - arrow_y
+    arrow_x = route_data.iloc[-1].plot_x
+    arrow_y = route_data.iloc[-1].plot_y
+    dx = arrow_x - route_data.iloc[-2].plot_x
+    dy = arrow_y - route_data.iloc[-2].plot_y
     ax.arrow(
         arrow_x,
         arrow_y,
         dx,
         dy,
-        width=5,
+        width=3,
         color="red" if route_data.iloc[-1].speed > speed_limit else "#1f77b4",
         edgecolor=None,
     )
