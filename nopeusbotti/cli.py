@@ -4,10 +4,12 @@ import click
 import matplotlib
 import matplotlib.pyplot as plt
 import paho.mqtt.client as mqtt
+from gql.transport.aiohttp import log as gql_logger
 
 from nopeusbotti.bot import Area, Bot
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+gql_logger.setLevel(logging.WARNING)
 
 matplotlib.use("Agg")
 plt.style.use("seaborn-darkgrid")
@@ -45,8 +47,8 @@ plt.style.use("seaborn-darkgrid")
     required=True,
 )
 @click.option(
-    "--stop-id",
-    help="The stops ids to track. This option can be repeated as many times as needed.",
+    "--route",
+    help="The routes to track. This option can be repeated as many times as needed.",
     multiple=True,
     required=True,
 )
@@ -56,9 +58,9 @@ plt.style.use("seaborn-darkgrid")
     is_flag=True,
     default=False,
 )
-def main(north, south, east, west, speed_limit, stop_id, no_tweets):
+def main(north, south, east, west, speed_limit, route, no_tweets):
     area = Area(north, south, east, west, speed_limit)
-    bot = Bot(area, stop_id, send_tweets=not no_tweets)
+    bot = Bot(area, route, send_tweets=not no_tweets)
     client = mqtt.Client()
     client.tls_set()
     client.on_connect = bot.on_connect

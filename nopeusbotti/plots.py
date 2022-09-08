@@ -1,4 +1,5 @@
 import io
+import uuid
 
 import folium
 import matplotlib.pyplot as plt
@@ -121,3 +122,13 @@ def get_title(route_data, speed_limit):
         title += "Ei ylinopeutta."
 
     return title
+
+
+def plot_route_to_file(route_data, area):
+    plot_route_speed_and_map(route_data, area)
+    title = get_title(route_data, area.speed_limit)
+    plt.suptitle(title)
+    filename = f"{uuid.uuid4()}.png"
+    plt.savefig(filename)
+    plt.close()
+    return filename, title

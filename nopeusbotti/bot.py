@@ -2,14 +2,14 @@ import collections
 import json
 import logging
 import os
-import uuid
 from dataclasses import dataclass
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import tweepy
+from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
 
-from nopeusbotti.plots import get_title, plot_route_speed_and_map
+from nopeusbotti.plots import plot_route_to_file
 
 
 @dataclass
@@ -22,9 +22,9 @@ class Area:
 
 
 class Bot:
-    def __init__(self, area, stop_ids, send_tweets):
+    def __init__(self, area, routes, send_tweets):
         self.area = area
-        self.stop_ids = stop_ids
+        self.routes = routes
         self.messages = collections.defaultdict(list)
         self.send_tweets = send_tweets
         self.logger = logging.getLogger(__name__)
@@ -39,8 +39,26 @@ class Bot:
                 "Run with --no-tweets: only producing figures, will not send any tweets"
             )
 
-    def get_mqtt_topic(self, stop_id):
-        return f"/hfp/v2/journey/ongoing/vp/bus/+/+/+/+/+/+/{stop_id}/#"
+    def get_mqtt_topic(self, route):
+        query = gql(
+            f"""
+            {{
+                routes(name: "{route}", transportModes: BUS) {{
+                    gtfsId
+                }}
+            }}
+            """
+        )
+        transport = AIOHTTPTransport(
+            url="https://api.digitransit.fi/routing/v1/routers/hsl/index/graphql"
+        )
+        client = Client(transport=transport, fetch_schema_from_transport=True)
+        result = client.execute(query)
+        try:
+            route_id = result["routes"][0]["gtfsId"].replace("HSL:", "")
+        except (KeyError, IndexError, AttributeError):
+            raise ValueError("No valid ID found for route {route}")
+        return f"/hfp/v2/journey/ongoing/vp/+/+/+/{route_id}/#"
 
     def get_message_key(self, message):
         return tuple(message[key] for key in ["oper", "veh", "oday", "start"])
@@ -50,8 +68,8 @@ class Bot:
 
     def on_connect(self, client, userdata, flags, rc):
         self.logger.info(f"Client connected (rc = {rc})")
-        for stop_id in self.stop_ids:
-            topic = self.get_mqtt_topic(stop_id)
+        for route in self.routes:
+            topic = self.get_mqtt_topic(route)
             self.logger.info(f"Subscribing to {topic}")
             client.subscribe(topic)
 
@@ -67,7 +85,8 @@ class Bot:
             self.logger.info(f"{key} has left the area, plotting route")
             route_data = self.to_df(self.messages.pop(key))
             route_data = route_data.assign(route_name=self.get_route_name(topic))
-            filename, title = self.plot_route_to_file(route_data)
+            filename, title = plot_route_to_file(route_data, self.area)
+            self.logger.info(f"Saved plot to {filename}")
             if self.send_tweets:
                 self.post_route_to_twitter(filename, title)
                 self.remove_file(filename)
@@ -104,16 +123,6 @@ class Bot:
         df.loc[:, "time"] = pd.to_datetime(df.time).dt.tz_convert("EET")
         df = df.sort_values("time")
         return df
-
-    def plot_route_to_file(self, route_data):
-        plot_route_speed_and_map(route_data, self.area)
-        title = get_title(route_data, self.area.speed_limit)
-        plt.suptitle(title)
-        filename = f"{uuid.uuid4()}.png"
-        plt.savefig(filename)
-        plt.close()
-        self.logger.info(f"Plotted route to {filename}")
-        return filename, title
 
     def post_route_to_twitter(self, filename, title):
         self.logger.info(f"Posting {filename} to Twitter")

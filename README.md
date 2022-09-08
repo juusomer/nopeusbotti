@@ -46,7 +46,7 @@ Unless `--no-tweets` is set, the following Twitter API credentials must be provi
 
 The "Essential" access category is sufficient to run the bot: API v1.1 is used for posting the images, and v2 for the actual tweets. See https://developer.twitter.com/en/portal/petition/essential/basic-info for more information.
 
-The bot tracks buses heading to specific stops within an area defined by maximum and minimum lat/long values. The stops are defined with their ids, which can be checked from e.g. [Reittiopas](https://reittiopas.hsl.fi). For example the stop Tikkurilan lukio (V6231) has the id `4620231`, as its Reittiopas URL is reittiopas.hsl.fi/pysakit/HSL%3A**4620231**.
+The bot tracks buses within an area defined by maximum and minimum lat/long values. The buses are defined with the route numbers, e.g. `570`.
 
 The following command
 
@@ -54,12 +54,12 @@ The following command
 poetry run nopeusbotti \
   --speed-limit 30 \
   --north 60.297449 --south 60.2958756 --east 25.059465 --west 25.0569888 \
-  --stop-id 4620205 --stop-id 4620231 --stop-id 4620222
+  --route 570 --route 711 --route 717 --route 717K
 ```
 
 runs the bot as seen on https://twitter.com/30bussit:
 
-- all the buses going to stops V6205, V6222 or V6231 (570 does not stop at V6222, which is why we need two stops at the northern end of the area) are monitored
+- the monitored routes are 570, 711, 717 and 717K
 - the speed limit is 30
 - the speed limit is monitored within the depicted area:
 
