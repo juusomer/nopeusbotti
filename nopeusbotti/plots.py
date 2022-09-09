@@ -56,11 +56,12 @@ def plot_route_map(route_data, area, ax):
     x = route_data.to_crs(epsg=3857).geometry.x
     y = route_data.to_crs(epsg=3857).geometry.y
 
-    ax.plot(x, y, "o-")
+    ax.plot(x, y, "o-", ms=4)
     ax.plot(
         x[route_data.speed > speed_limit],
         y[route_data.speed > speed_limit],
         "ro",
+        ms=4,
     )
 
     arrow_x = x.iloc[-1]
