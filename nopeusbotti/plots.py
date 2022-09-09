@@ -70,7 +70,7 @@ def plot_route_map(route_data, area, ax):
         arrow_y + dy / 2,
         dx,
         dy,
-        width=np.abs(dx) / 4,
+        width=3,
         color="red" if route_data.iloc[-1].speed > speed_limit else "#1f77b4",
     )
 
