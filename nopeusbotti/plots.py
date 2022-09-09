@@ -74,11 +74,9 @@ def plot_route_map(route_data, area, ax):
         color="red" if route_data.iloc[-1].speed > speed_limit else "#1f77b4",
     )
 
-    ax.set_aspect("equal", "datalim")
-    ax.margins(0.10)
-
+    ax.margins(0.25)
     cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerNoLabels, zoom=19)
-    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerOnlyLabels, zoom=18)
+    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerOnlyLabels, zoom=17)
 
 
 def get_title(route_name, route_data, area):
