@@ -2,6 +2,7 @@ import uuid
 
 import contextily as cx
 import geopandas as gpd
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -24,8 +25,9 @@ def plot_route_to_file(route_name, position_messages, area):
 
 
 def plot_route_speed_and_map(route_data, area):
+    w, h = matplotlib.figure.figaspect(9 / 16)
     _, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(18, 6), gridspec_kw={"width_ratios": [2, 1]}
+        1, 2, figsize=(1.25 * w, 1.25 * h), gridspec_kw={"width_ratios": [2, 1]}
     )
     plot_route_speed(route_data, area, ax1)
     plot_route_map(route_data, area, ax2)
@@ -75,8 +77,7 @@ def plot_route_map(route_data, area, ax):
     )
 
     ax.margins(0.25)
-    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerNoLabels, zoom=19)
-    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerOnlyLabels, zoom=17)
+    cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, zoom=17)
 
 
 def get_title(route_name, route_data, area):
