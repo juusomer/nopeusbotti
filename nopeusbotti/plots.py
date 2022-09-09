@@ -1,116 +1,99 @@
-import io
 import uuid
 
-import folium
+import contextily as cx
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+import pandas as pd
 
 
-def plot_route_speed(route_data, speed_limit, ax=None):
-    speed_km_h = route_data.set_index("time").speed * 3.6
-    ax = speed_km_h.plot(style="o-", ax=ax)
-    ax = speed_km_h[speed_km_h > speed_limit].plot(style="o", color="red", ax=ax)
-    ax.set_ylim(bottom=0, top=max([speed_limit + 10, speed_km_h.max() + 5]))
+def plot_route_to_file(route_name, position_messages, area):
+    route_data = to_dataframe(position_messages)
+    plot_route_speed_and_map(route_data, area)
+
+    title = get_title(route_name, route_data, area)
+    suptitle = plt.suptitle(title, y=1.02)
+
+    plt.tight_layout()
+
+    filename = f"{uuid.uuid4()}.png"
+    plt.savefig(filename, bbox_extra_artists=(suptitle,), bbox_inches="tight")
+    plt.close()
+
+    return filename, title
+
+
+def plot_route_speed_and_map(route_data, area):
+    _, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(18, 6), gridspec_kw={"width_ratios": [2, 1]}
+    )
+    plot_route_speed(route_data, area, ax1)
+    plot_route_map(route_data, area, ax2)
+
+
+def plot_route_speed(route_data, area, ax):
+    speed_limit = area.speed_limit
+    route_data.speed.plot(style="o-", ax=ax)
+    route_data.speed[route_data.speed > speed_limit].plot(style="o", color="red", ax=ax)
+    ax.set_ylim(bottom=0, top=max([speed_limit + 10, route_data.speed.max() + 5]))
     ax.set_xlabel("Aika")
     ax.set_ylabel("Nopeus (km/h)")
     ax.hlines(
         speed_limit,
-        route_data.time.min(),
-        route_data.time.max(),
+        route_data.index.min(),
+        route_data.index.max(),
         color="red",
         linestyle="dashed",
     )
-    return ax
 
 
-def to_png(folium_map, delay=0.1):
-    crop_area = (0, 0, folium_map.width[0], folium_map.height[0])
-    image = Image.open(io.BytesIO(folium_map._to_png(delay)))
-    return image.crop(crop_area)
+def plot_route_map(route_data, area, ax):
+    ax.set_axis_off()
 
+    speed_limit = area.speed_limit
+    x = route_data.to_crs(epsg=3857).geometry.x
+    y = route_data.to_crs(epsg=3857).geometry.y
 
-def plot_route_map(route_data, center, speed_limit, as_png=True):
-    m = folium.Map(
-        location=center,
-        height=400,
-        width=400,
-        zoom_control=not as_png,
-        control_scale=True,
+    ax.plot(x, y, "o-")
+    ax.plot(
+        x[route_data.speed > speed_limit],
+        y[route_data.speed > speed_limit],
+        "ro",
     )
 
-    coordinates = [(point.lat, point.long) for _, point in route_data.iterrows()]
-    speeds = [3.6 * point.speed for _, point in route_data.iterrows()]
-
-    folium.PolyLine(coordinates).add_to(m)
-
-    for point, speed in zip(coordinates[:-1], speeds[:-1]):
-        color = "red" if speed > speed_limit else "#3388ff"
-        folium.CircleMarker(
-            location=point,
-            radius=1.5,
-            color=color,
-            fill_color=color,
-            fill=True,
-            fill_opacity=1,
-            tooltip=f"{speed} km/h",
-        ).add_to(m)
-
-    arrow_rotation = 90 - (360 / (2 * np.pi)) * np.arctan(
-        np.abs(route_data.iloc[-1].lat - route_data.iloc[-2].lat)
-        / np.abs(route_data.iloc[-1].long - route_data.iloc[-2].long)
+    arrow_x = x.iloc[-1]
+    arrow_y = y.iloc[-1]
+    dx = x.iloc[-1] - x.iloc[-2]
+    dy = y.iloc[-1] - y.iloc[-2]
+    ax.arrow(
+        arrow_x + dx / 2,
+        arrow_y + dy / 2,
+        dx,
+        dy,
+        width=np.abs(dx) / 4,
+        color="red" if route_data.iloc[-1].speed > speed_limit else "#1f77b4",
     )
 
-    if route_data.iloc[-1].lat >= route_data.iloc[-2].lat:
-        arrow_rotation += 180
+    # Zoom out of the observed data points slightly
+    xlim = ax.get_xlim()
+    width = xlim[1] - xlim[0]
+    ax.set_xlim([xlim[0] - 0.10 * width, xlim[1] + 0.10 * width])
+    ylim = ax.get_ylim()
+    height = ylim[1] - ylim[0]
+    ax.set_ylim([ylim[0] - 0.10 * height, ylim[1] + 0.10 * height])
 
-    folium.RegularPolygonMarker(
-        location=[route_data.iloc[-1].lat, route_data.iloc[-1].long],
-        number_of_sides=3,
-        radius=8,
-        rotation=arrow_rotation,
-        color="red" if speeds[-1] > speed_limit else "#3388ff",
-        fill_color="red" if speeds[-1] > speed_limit else "#3388ff",
-        fill=True,
-        fill_opacity=1,
-    ).add_to(m)
-
-    sw = route_data[["lat", "long"]].min().values.tolist()
-    ne = route_data[["lat", "long"]].max().values.tolist()
-    m.fit_bounds([sw, ne])
-
-    return m if not as_png else to_png(m)
+    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerNoLabels, zoom=19)
+    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerOnlyLabels, zoom=18)
 
 
-def plot_route_speed_and_map(route_data, area):
-    width = 16
-    height = width / 3
-    fig, (ax1, ax2) = plt.subplots(
-        1, 2, gridspec_kw={"width_ratios": [2, 1]}, figsize=(width, height)
-    )
-    plot_route_speed(route_data, speed_limit=area.speed_limit, ax=ax1)
-    ax2.set_axis_off()
-    ax2.imshow(
-        plot_route_map(
-            route_data,
-            center=[
-                (area.north + area.south) / 2,
-                (area.east + area.west) / 2,
-            ],
-            speed_limit=area.speed_limit,
-        ),
-    )
-
-
-def get_title(route_data, speed_limit):
+def get_title(route_name, route_data, area):
     sample = route_data.iloc[0]
 
-    route_name = sample.route_name
     route_number = sample.route_number
     time = f"{sample.operating_day} {sample.start_time}"
 
-    overspeed = (route_data.speed * 3.6 - speed_limit).max()
-    overspeed_proportional = overspeed / speed_limit
+    overspeed = (route_data.speed - area.speed_limit).max()
+    overspeed_proportional = overspeed / area.speed_limit
 
     title = title = f"Linja {route_number} ({route_name}) - lähtö {time}. "
 
@@ -124,11 +107,24 @@ def get_title(route_data, speed_limit):
     return title
 
 
-def plot_route_to_file(route_data, area):
-    plot_route_speed_and_map(route_data, area)
-    title = get_title(route_data, area.speed_limit)
-    plt.suptitle(title)
-    filename = f"{uuid.uuid4()}.png"
-    plt.savefig(filename)
-    plt.close()
-    return filename, title
+def to_dataframe(position_messages):
+    df = pd.DataFrame(position_messages)
+
+    columns = {
+        "desi": "route_number",
+        "tst": "time",
+        "spd": "speed",
+        "lat": "lat",
+        "long": "long",
+        "oday": "operating_day",
+        "start": "start_time",
+    }
+    df = df[columns.keys()].rename(columns=columns)
+
+    df.loc[:, "time"] = pd.to_datetime(df.time).dt.tz_convert("EET")
+    df.loc[:, "speed"] *= 3.6
+
+    df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.long, df.lat))
+    df.crs = "EPSG:4326"
+
+    return df.set_index("time").sort_index()
