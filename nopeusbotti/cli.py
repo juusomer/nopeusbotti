@@ -18,25 +18,25 @@ plt.style.use("seaborn-darkgrid")
 @click.command()
 @click.option(
     "--north",
-    help="The northernmost latitude coordinate of the monitored area",
+    help="The northernmost latitude coordinate (EPSG:4326 / WGS84) of the monitored area",
     type=float,
     required=True,
 )
 @click.option(
     "--south",
-    help="The southernmost latitude coordinate of the monitored area",
+    help="The southernmost latitude coordinate (EPSG:4326 / WGS84) of the monitored area",
     type=float,
     required=True,
 )
 @click.option(
     "--east",
-    help="The easternmost longitude coordinate of the monitored area",
+    help="The easternmost longitude coordinate  (EPSG:4326 / WGS84) of the monitored area",
     type=float,
     required=True,
 )
 @click.option(
     "--west",
-    help="The westernmost longitude coordinate of the monitored area",
+    help="The westernmost longitude coordinate  (EPSG:4326 / WGS84) of the monitored area",
     type=float,
     required=True,
 )

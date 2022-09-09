@@ -1,6 +1,6 @@
 import uuid
 
-import contextily as ctx
+import contextily as cx
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,21 +9,23 @@ import pandas as pd
 
 def plot_route_to_file(route_name, position_messages, area):
     route_data = to_dataframe(position_messages)
-    title = get_title(route_name, route_data, area)
-    filename = f"{uuid.uuid4()}.png"
     plot_route_speed_and_map(route_data, area)
+
+    title = get_title(route_name, route_data, area)
+    suptitle = plt.suptitle(title, y=1.02)
+
     plt.tight_layout()
-    plt.suptitle(title)
-    plt.savefig(filename)
+
+    filename = f"{uuid.uuid4()}.png"
+    plt.savefig(filename, bbox_extra_artists=(suptitle,), bbox_inches="tight")
     plt.close()
+
     return filename, title
 
 
 def plot_route_speed_and_map(route_data, area):
-    width = 18
-    height = width / 3
     _, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(width, height), gridspec_kw={"width_ratios": [2, 1]}
+        1, 2, figsize=(18, 6), gridspec_kw={"width_ratios": [2, 1]}
     )
     plot_route_speed(route_data, area, ax1)
     plot_route_map(route_data, area, ax2)
@@ -48,37 +50,32 @@ def plot_route_speed(route_data, area, ax):
 def plot_route_map(route_data, area, ax):
     ax.set_axis_off()
 
-    img, ext = ctx.bounds2img(
-        area.west,
-        area.south,
-        area.east,
-        area.north,
-        ll=True,
-        source=ctx.providers.OpenStreetMap.Mapnik,
-    )
-    ax.imshow(img, extent=ext, interpolation="sinc", aspect="equal")
-
     speed_limit = area.speed_limit
-    ax.plot(route_data.plot_x, route_data.plot_y, "o-")
+    x = route_data.to_crs(epsg=3857).geometry.x
+    y = route_data.to_crs(epsg=3857).geometry.y
+
+    ax.plot(x, y, "o-")
     ax.plot(
-        route_data[route_data.speed > speed_limit].plot_x,
-        route_data[route_data.speed > speed_limit].plot_y,
+        x[route_data.speed > speed_limit],
+        y[route_data.speed > speed_limit],
         "ro",
     )
 
-    arrow_x = route_data.iloc[-1].plot_x
-    arrow_y = route_data.iloc[-1].plot_y
-    dx = arrow_x - route_data.iloc[-2].plot_x
-    dy = arrow_y - route_data.iloc[-2].plot_y
+    arrow_x = x.iloc[-1]
+    arrow_y = y.iloc[-1]
+    dx = x.iloc[-1] - x.iloc[-2]
+    dy = y.iloc[-1] - y.iloc[-2]
     ax.arrow(
-        arrow_x,
-        arrow_y,
+        arrow_x + dx / 2,
+        arrow_y + dy / 2,
         dx,
         dy,
-        width=3,
+        width=np.abs(dx) / 4,
         color="red" if route_data.iloc[-1].speed > speed_limit else "#1f77b4",
-        edgecolor=None,
     )
+
+    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerNoLabels, zoom=19)
+    cx.add_basemap(ax, source=cx.providers.CartoDB.VoyagerOnlyLabels, zoom=18)
 
 
 def get_title(route_name, route_data, area):
@@ -121,7 +118,5 @@ def to_dataframe(position_messages):
 
     df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.long, df.lat))
     df.crs = "EPSG:4326"
-    df.loc[:, "plot_x"] = df.to_crs(epsg=3857).geometry.x
-    df.loc[:, "plot_y"] = df.to_crs(epsg=3857).geometry.y
 
     return df.set_index("time").sort_index()

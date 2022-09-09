@@ -22,14 +22,14 @@ After installing the dependencies, the bot can be run with
 poetry run nopeusbotti [OPTIONS]
 
 Options:
-  --north FLOAT        The northernmost latitude coordinate of the monitored
-                       area  [required]
-  --south FLOAT        The southernmost latitude coordinate of the monitored
-                       area  [required]
-  --east FLOAT         The easternmost longitude coordinate of the monitored
-                       area  [required]
-  --west FLOAT         The westernmost longitude coordinate of the monitored
-                       area  [required]
+  --north FLOAT        The northernmost latitude coordinate (EPSG:4326 /
+                       WGS84) of the monitored area  [required]
+  --south FLOAT        The southernmost latitude coordinate (EPSG:4326 /
+                       WGS84) of the monitored area  [required]
+  --east FLOAT         The easternmost longitude coordinate  (EPSG:4326 /
+                       WGS84) of the monitored area  [required]
+  --west FLOAT         The westernmost longitude coordinate  (EPSG:4326 /
+                       WGS84) of the monitored area  [required]
   --speed-limit FLOAT  Speed limit withing the monitored area  [required]
   --route TEXT         The routes to track. This option can be repeated as
                        many times as needed.  [required]
