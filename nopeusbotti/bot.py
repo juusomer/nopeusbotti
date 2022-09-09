@@ -81,8 +81,15 @@ class Bot:
             self.messages[key].append(message)
 
         elif self.messages[key]:
-            self.logger.info(f"{key} has left the area, plotting route")
             route_data = self.messages.pop(key)
+
+            if len(route_data) <= 10:
+                self.logger.info(
+                    f"{key} has only {len(route_data)} data points, ignoring"
+                )
+                return
+
+            self.logger.info(f"{key} has left the area, plotting route")
             route_name = self.get_route_name(topic)
             filename, title = plot_route_to_file(route_name, route_data, self.area)
             self.logger.info(f"Saved plot to {filename}")
