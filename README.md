@@ -1,6 +1,6 @@
 # nopeusbotti
 
-A Twitter bot that plots the velocities of HSL buses.
+A Twitter bot that plots the velocities of HSL buses. The data is from [HSL Vehicle Positions API](https://digitransit.fi/en/developers/apis/4-realtime-api/vehicle-positions/) (© Helsinki Region Transport, 2022).
 
 # Installation
 
