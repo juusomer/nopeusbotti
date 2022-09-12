@@ -9,7 +9,7 @@ from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
 from nopeusbotti.plots import plot_route_to_file
-
+from nopeusbotti.plots import to_dataframe
 
 @dataclass
 class Area:
@@ -21,14 +21,17 @@ class Area:
 
 
 class Bot:
-    def __init__(self, area, routes, send_tweets):
+    def __init__(self, area, routes, send_tweets, log_only):
         self.area = area
         self.routes = routes
         self.messages = collections.defaultdict(list)
         self.send_tweets = send_tweets
+        self.log_only = log_only
         self.logger = logging.getLogger(__name__)
 
-        if self.send_tweets:
+        if log_only:
+            self.logger.info("Run with --log-only: only producing log file without tweets and images")
+        elif self.send_tweets:
             self.access_token = os.environ["ACCESS_TOKEN"]
             self.access_token_secret = os.environ["ACCESS_TOKEN_SECRET"]
             self.api_key = os.environ["API_KEY"]
@@ -37,6 +40,7 @@ class Bot:
             self.logger.info(
                 "Run with --no-tweets: only producing figures, will not send any tweets"
             )
+
 
     def get_mqtt_topic(self, route):
         query = gql(
@@ -91,8 +95,13 @@ class Bot:
 
             self.logger.info(f"{key} has left the area, plotting route")
             route_name = self.get_route_name(topic)
-            filename, title = plot_route_to_file(route_name, route_data, self.area)
-            self.logger.info(f"Saved plot to {filename}")
+
+            if not self.log_only:
+                filename, title = plot_route_to_file(route_name, route_data, self.area)
+                self.logger.info(f"Saved plot to {filename}")
+
+            self.add_data_to_csv_file(route_name, route_data, self.area)
+
             if self.send_tweets:
                 self.post_route_to_twitter(filename, title)
                 self.remove_file(filename)
@@ -132,3 +141,17 @@ class Bot:
     def remove_file(self, filename):
         self.logger.info(f"Removing {filename}")
         os.remove(filename)
+
+    def add_data_to_csv_file(self, route_name, position_messages, area):
+        route_data = to_dataframe(position_messages)
+        sample = route_data.iloc[0]
+        route_number = sample.route_number
+        start_time = sample.start_time
+        current_date = sample.operating_day
+        max_speed = route_data.speed.max()
+        speed_limit = area.speed_limit
+
+        line_to_save = f"{str(route_number)},{str(start_time)},{str(current_date)},{str(max_speed)},{str(speed_limit)}"
+        with open("log.csv", "a") as file_object:
+            file_object.write(line_to_save + "\n")
+            self.logger.info("Logged CSV: " + line_to_save)
