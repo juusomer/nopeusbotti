@@ -58,9 +58,18 @@ plt.style.use("seaborn-darkgrid")
     is_flag=True,
     default=False,
 )
-def main(north, south, east, west, speed_limit, route, no_tweets):
+
+@click.option(
+    "--log-only",
+    help="If set, do not create and store images, do not tweet, only log the line, time, date, maximum speed and speed limit. Includes --no-tweets.",
+    is_flag=True,
+    default=False,
+)
+def main(north, south, east, west, speed_limit, route, no_tweets, log_only):
+    if log_only:
+        no_tweets = True
     area = Area(north, south, east, west, speed_limit)
-    bot = Bot(area, route, send_tweets=not no_tweets)
+    bot = Bot(area, route, send_tweets=not no_tweets, log_only=log_only)
     client = mqtt.Client()
     client.tls_set()
     client.on_connect = bot.on_connect
