@@ -4,7 +4,6 @@ import contextily as cx
 import geopandas as gpd
 import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 
@@ -13,12 +12,10 @@ def plot_route_to_file(route_name, position_messages, area):
     plot_route_speed_and_map(route_data, area)
 
     title = get_title(route_name, route_data, area)
-    suptitle = plt.suptitle(title, y=1.02)
-
-    plt.tight_layout()
+    plt.suptitle(title, y=0.9)
 
     filename = f"{uuid.uuid4()}.png"
-    plt.savefig(filename, bbox_extra_artists=(suptitle,), bbox_inches="tight")
+    plt.savefig(filename)
     plt.close()
 
     return filename, title
@@ -28,6 +25,16 @@ def plot_route_speed_and_map(route_data, area):
     w, h = matplotlib.figure.figaspect(9 / 16)
     _, (ax1, ax2) = plt.subplots(
         1, 2, figsize=(1.25 * w, 1.25 * h), gridspec_kw={"width_ratios": [2, 1]}
+    )
+    wspace = 0.5 / 16
+    padding_horizontal = 3 / 16 - wspace
+    padding_vertical = 4 / 9
+    plt.subplots_adjust(
+        left=3 / 4 * padding_horizontal / 2,
+        right=1 - 1 / 4 * padding_horizontal / 2,
+        top=1 - padding_vertical / 2,
+        bottom=padding_vertical / 2,
+        wspace=wspace,
     )
     plot_route_speed(route_data, area, ax1)
     plot_route_map(route_data, area, ax2)
@@ -77,7 +84,8 @@ def plot_route_map(route_data, area, ax):
         color="red" if route_data.iloc[-1].speed > speed_limit else "#1f77b4",
     )
 
-    ax.margins(0.25)
+    ax.set_aspect("equal", "datalim")
+    ax.margins(0.15)
     cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, zoom=17)
 
 
