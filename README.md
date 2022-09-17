@@ -22,20 +22,27 @@ After installing the dependencies, the bot can be run with
 poetry run nopeusbotti [OPTIONS]
 
 Options:
-  --north FLOAT        The northernmost latitude coordinate (EPSG:4326 /
-                       WGS84) of the monitored area  [required]
-  --south FLOAT        The southernmost latitude coordinate (EPSG:4326 /
-                       WGS84) of the monitored area  [required]
-  --east FLOAT         The easternmost longitude coordinate  (EPSG:4326 /
-                       WGS84) of the monitored area  [required]
-  --west FLOAT         The westernmost longitude coordinate  (EPSG:4326 /
-                       WGS84) of the monitored area  [required]
-  --speed-limit FLOAT  Speed limit withing the monitored area  [required]
-  --route TEXT         The routes to track. This option can be repeated as
-                       many times as needed.  [required]
-  --no-tweets          If set, do not send any tweets, only produce the
-                       figures (for testing purposes).
-  --help               Show this message and exit.
+  --north FLOAT          The northernmost latitude coordinate (EPSG:4326 /
+                         WGS84) of the monitored area  [required]
+  --south FLOAT          The southernmost latitude coordinate (EPSG:4326 /
+                         WGS84) of the monitored area  [required]
+  --east FLOAT           The easternmost longitude coordinate  (EPSG:4326 /
+                         WGS84) of the monitored area  [required]
+  --west FLOAT           The westernmost longitude coordinate  (EPSG:4326 /
+                         WGS84) of the monitored area  [required]
+  --speed-limit FLOAT    Speed limit withing the monitored area  [required]
+  --route TEXT           The routes to track. This option can be repeated as
+                         many times as needed.  [required]
+  --no-tweets            If set, do not send any tweets, only produce the
+                         figures (for testing purposes).
+  --plot-directory TEXT  The directory for storing the plotted figures. Unless
+                         --no-tweets is specified, the figures are only stored
+                         here temporarily before publishing to twitter.
+  --dump-json            If set, the messages used to draw each plot will be
+                         stored in the specified directory (--json-dir)
+  --json-directory TEXT  The directory for storing the JSON messages if
+                         --dump-json is specified
+  --help                 Show this message and exit.
 ```
 
 Unless `--no-tweets` is set, the following Twitter API credentials must be provided as environment variables:
