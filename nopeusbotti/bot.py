@@ -32,7 +32,7 @@ class VehicleKey:
 class MonitoredVehicle:
     def __init__(self):
         self.max_timestamp = 0
-        self.position_messages = []
+        self.position_messages: List[dict] = []
 
     def add_position_message(self, message):
         self.max_timestamp = max(self.max_timestamp, message["tsi"])
