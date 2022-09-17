@@ -1,11 +1,12 @@
 import logging
+from pathlib import Path
 
 import click
 import matplotlib
 import matplotlib.pyplot as plt
 from gql.transport.aiohttp import log as gql_logger
 
-from nopeusbotti.bot import Bot, MonitoredArea
+from nopeusbotti.bot import Area, Bot
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 gql_logger.setLevel(logging.WARNING)
@@ -57,9 +58,42 @@ plt.style.use("seaborn-darkgrid")
     is_flag=True,
     default=False,
 )
-def main(north, south, east, west, speed_limit, route, no_tweets):
-    area = MonitoredArea(north, south, east, west, speed_limit)
-    bot = Bot(area, route, send_tweets=not no_tweets)
+@click.option(
+    "--plot-directory",
+    help="The directory for storing the plotted figures. Unless --no-tweets is specified, the figures are only stored here temporarily before publishing to twitter.",
+    default="plots",
+)
+@click.option(
+    "--dump-json",
+    help="If set, the messages used to draw each plot will be stored in the specified directory (--json-dir)",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--json-directory",
+    help="The directory for storing the JSON messages if --dump-json is specified",
+    default="messages",
+)
+def main(
+    north,
+    south,
+    east,
+    west,
+    speed_limit,
+    route,
+    no_tweets,
+    plot_directory,
+    dump_json,
+    json_directory,
+):
+    bot = Bot(
+        area=Area(north, south, east, west, speed_limit),
+        routes=route,
+        send_tweets=not no_tweets,
+        plot_directory=Path(plot_directory),
+        dump_json=dump_json,
+        json_directory=Path(json_directory),
+    )
     bot.run()
 
 

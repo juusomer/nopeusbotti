@@ -1,5 +1,3 @@
-import uuid
-
 import contextily as cx
 import geopandas as gpd
 import matplotlib
@@ -7,18 +5,17 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def plot_route_to_file(route_name, position_messages, area):
+def plot_route_to_file(route_name, position_messages, area, filename):
     route_data = to_dataframe(position_messages)
     plot_route_speed_and_map(route_data, area)
 
     title = get_title(route_name, route_data, area)
     plt.suptitle(title, y=0.9)
 
-    filename = f"{uuid.uuid4()}.png"
     plt.savefig(filename)
     plt.close()
 
-    return filename, title
+    return title
 
 
 def plot_route_speed_and_map(route_data, area):
