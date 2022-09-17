@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
@@ -8,10 +7,10 @@ from pathlib import Path
 from typing import Dict, List
 
 import paho.mqtt.client as mqtt
-import tweepy
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
+import nopeusbotti.twitter as twitter
 from nopeusbotti.plots import plot_route_to_file
 
 
@@ -84,12 +83,15 @@ class Bot:
         self.logger = logging.getLogger(__name__)
 
         if self.send_tweets:
-            self.access_token = os.environ["ACCESS_TOKEN"]
-            self.access_token_secret = os.environ["ACCESS_TOKEN_SECRET"]
-            self.api_key = os.environ["API_KEY"]
-            self.api_key_secret = os.environ["API_KEY_SECRET"]
+            self.twitter_credentials = twitter.Credentials.from_environment()
 
     def run(self):
+        """Run the bot forever
+
+        This method starts the MQTT client connection loop, which subscribes
+        to the relevant topics upon connecting in Bot.on_connect and handles
+        any messages consumed from them with Bot.on_message.
+        """
         if not self.send_tweets:
             self.logger.info(
                 "Run with --no-tweets: only producing figures, will not send any tweets"
@@ -111,6 +113,7 @@ class Bot:
         client.loop_forever()
 
     def on_connect(self, client, userdata, flags, rc):
+        """Subscribe to relevant topics upon MQTT connection"""
         self.logger.info(f"Client connected (rc = {rc})")
         for route in self.routes:
             topic = self.get_mqtt_topic(route)
@@ -119,6 +122,12 @@ class Bot:
 
     @lru_cache
     def get_mqtt_topic(self, route_number: str):
+        """Get the name of the MQTT topic based on route number
+
+        The topic name is fetched from the HSL GraphQL API. If no
+        matching bus is found for the route id, this method raises
+        a ValueError.
+        """
         query = gql(
             f"""
             {{
@@ -141,6 +150,12 @@ class Bot:
         return f"/hfp/v2/journey/ongoing/vp/+/+/+/{route_id}/#"
 
     def on_message(self, client, userdata, msg):
+        """Handle an incoming MQTT message
+
+        This method does most of the work of the bot; it parses
+        the incoming messages, checks whether they are within or
+        outside the monitored area and handles them correspondingly.
+        """
         try:
             message = json.loads(msg.payload)["VP"]
             self.max_timestamp = max(self.max_timestamp, message["tsi"])
@@ -160,6 +175,7 @@ class Bot:
             self.logger.exception(e)
 
     def handle_vehicle_within_area(self, vehicle_key: Vehicle, message: dict):
+        """Store a message from a vehicle inside the monitored area"""
         if not vehicle_key in self.vehicles:
             self.logger.info(f"{vehicle_key} has entered the monitored area")
             self.vehicles[vehicle_key] = VehicleData()
@@ -167,6 +183,14 @@ class Bot:
         self.vehicles[vehicle_key].add_position_message(message)
 
     def handle_vehicle_outside_area(self, vehicle_key: Vehicle):
+        """Handle a message from a vehicle outside the monitored area
+
+        This method only does something when the vehicle has just
+        exited the monitored area, so a majority of the messages are
+        simply ignored. In the former case we generate all the relevant
+        plots, tweets and files from the data and remove the vehicle
+        from the monitored vehicles.
+        """
         if vehicle_key not in self.vehicles:
             return
 
@@ -194,7 +218,7 @@ class Bot:
             self.logger.info(f"Saved JSON data to {json_filename}")
 
         if self.send_tweets:
-            self.post_route_to_twitter(plot_filename, title)
+            twitter.send_tweet(title, plot_filename, self.twitter_credentials)
             self.remove_file(plot_filename)
 
     def get_vehicle_key(self, topic: str, message: dict):
@@ -215,6 +239,18 @@ class Bot:
             raise InvalidCoordinateError
 
     def remove_expired_vehicles(self):
+        """Remove vehicles with no data within Bot.EXPIRATION_SECONDS
+
+        This method is called in Bot.on_message to ensure that if we
+        stop receiving messages from a vehicle while it is inside
+        the monitored area (whether that's due to our or its connection
+        problems), we eventually free up the memory used by its data.
+
+        The expiration is checked by comparing the most recent timestamp
+        from each vehicle to the most recent timestamp of all vehicles. This
+        way we do not have to care about the system clock or any possible
+        delays from the MQTT broker.
+        """
         for key, vehicle in self.vehicles.items():
             if self.is_expired(vehicle):
                 self.logger.warn(f"Dropping expired data from {key}")
@@ -222,21 +258,6 @@ class Bot:
 
     def is_expired(self, vehicle: VehicleData):
         return self.max_timestamp - vehicle.max_timestamp >= Bot.EXPIRATION_SECONDS
-
-    def post_route_to_twitter(self, filename: str, title: str):
-        self.logger.info(f"Posting '{filename}' to Twitter")
-        auth = tweepy.OAuthHandler(self.api_key, self.api_key_secret)
-        auth.set_access_token(self.access_token, self.access_token_secret)
-        api = tweepy.API(auth)
-        media = api.media_upload(filename)
-        client = tweepy.Client(
-            consumer_key=self.api_key,
-            consumer_secret=self.api_key_secret,
-            access_token=self.access_token,
-            access_token_secret=self.access_token_secret,
-        )
-        client.create_tweet(text=title, media_ids=[media.media_id])
-        self.logger.info(f"Posted '{filename}' to Twitter")
 
     def create_directory(self, directory: Path):
         self.logger.info(f"Creating directory '{directory}'")

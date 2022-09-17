@@ -39,7 +39,7 @@ Options:
                          --no-tweets is specified, the figures are only stored
                          here temporarily before publishing to twitter.
   --dump-json            If set, the messages used to draw each plot will be
-                         stored in the specified directory (--json-dir)
+                         stored in the specified directory (--json-directory)
   --json-directory TEXT  The directory for storing the JSON messages if
                          --dump-json is specified
   --help                 Show this message and exit.

@@ -67,7 +67,7 @@ plt.style.use("seaborn-darkgrid")
 )
 @click.option(
     "--dump-json",
-    help="If set, the messages used to draw each plot will be stored in the specified directory (--json-dir)",
+    help="If set, the messages used to draw each plot will be stored in the specified directory (--json-directory)",
     is_flag=True,
     default=False,
 )
