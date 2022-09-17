@@ -8,7 +8,9 @@ from gql.transport.aiohttp import log as gql_logger
 
 from nopeusbotti.bot import Area, Bot
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 gql_logger.setLevel(logging.WARNING)
 
 matplotlib.use("Agg")

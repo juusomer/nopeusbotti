@@ -185,12 +185,13 @@ class Bot:
         title = plot_route_to_file(
             route_name, position_messages, self.area, plot_filename
         )
-
         self.logger.info(f"Saved plot to {plot_filename}")
 
         if self.dump_json:
-            with open(self.json_directory / (plot_id + ".json"), "w") as f:
+            json_filename = self.json_directory / (plot_id + ".json")
+            with open(json_filename, "w") as f:
                 f.write(json.dumps(position_messages))
+            self.logger.info(f"Saved JSON data to {json_filename}")
 
         if self.send_tweets:
             self.post_route_to_twitter(plot_filename, title)
@@ -216,14 +217,14 @@ class Bot:
     def remove_expired_vehicles(self):
         for key, vehicle in self.vehicles.items():
             if self.is_expired(vehicle):
-                self.logger.info(f"Dropping expired data from {key}")
+                self.logger.warn(f"Dropping expired data from {key}")
                 self.vehicles.pop(key)
 
     def is_expired(self, vehicle: VehicleData):
         return self.max_timestamp - vehicle.max_timestamp >= Bot.EXPIRATION_SECONDS
 
     def post_route_to_twitter(self, filename: str, title: str):
-        self.logger.info(f"Posting {filename} to Twitter")
+        self.logger.info(f"Posting '{filename}' to Twitter")
         auth = tweepy.OAuthHandler(self.api_key, self.api_key_secret)
         auth.set_access_token(self.access_token, self.access_token_secret)
         api = tweepy.API(auth)
@@ -235,7 +236,7 @@ class Bot:
             access_token_secret=self.access_token_secret,
         )
         client.create_tweet(text=title, media_ids=[media.media_id])
-        self.logger.info(f"Posted {filename} to Twitter")
+        self.logger.info(f"Posted '{filename}' to Twitter")
 
     def create_directory(self, directory: Path):
         self.logger.info(f"Creating directory '{directory}'")
