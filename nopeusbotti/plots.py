@@ -92,14 +92,14 @@ def get_title(route_name, route_data, area):
     route_number = sample.route_number
     time = f"{sample.operating_day} {sample.start_time}"
 
-    overspeed = (route_data.speed - area.speed_limit).max()
-    overspeed_proportional = overspeed / area.speed_limit
+    speeding = (route_data.speed - area.speed_limit).max()
+    speeding_proportional = speeding / area.speed_limit
 
     title = title = f"Linja {route_number} ({route_name}) - lähtö {time}. "
 
-    if overspeed >= 4:
-        title += f"Suurin ylinopeus {overspeed:.1f} km/h ({100 * overspeed_proportional:.0f}%)."
-    elif overspeed > 0:
+    if speeding >= 4:
+        title += f"Suurin ylinopeus {speeding:.1f} km/h ({100 * speeding_proportional:.0f}%)."
+    elif speeding > 0:
         title += "Ei huomattavaa ylinopeutta."
     else:
         title += "Ei ylinopeutta."
