@@ -2,6 +2,8 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from functools import lru_cache
+from typing import Dict, List
 
 import paho.mqtt.client as mqtt
 import tweepy
@@ -23,8 +25,6 @@ class MonitoredArea:
 @dataclass(frozen=True)
 class VehicleKey:
     route_name: str
-    operator_id: int
-    vehicle_id: int
     operating_day: str
     start_time: str
 
@@ -56,12 +56,13 @@ class Bot:
     # Monitored vehicles with no data in this time will be dropped
     EXPIRATION_SECONDS = 60
 
-    def __init__(self, area, routes, send_tweets):
+    def __init__(self, area: MonitoredArea, routes: List[str], send_tweets: bool):
         self.max_timestamp = 0
+        self.vehicles: Dict[VehicleKey, MonitoredVehicle] = {}
         self.area = area
         self.routes = routes
-        self.vehicles = {}
         self.send_tweets = send_tweets
+
         self.logger = logging.getLogger(__name__)
 
         if self.send_tweets:
@@ -89,7 +90,8 @@ class Bot:
             self.logger.info(f"Subscribing to {topic}")
             client.subscribe(topic)
 
-    def get_mqtt_topic(self, route_name):
+    @lru_cache
+    def get_mqtt_topic(self, route_name: str):
         query = gql(
             f"""
             {{
@@ -99,13 +101,16 @@ class Bot:
             }}
             """
         )
+
         transport = AIOHTTPTransport(url=Bot.ROUTE_GRAPHQL_URL)
         client = Client(transport=transport, fetch_schema_from_transport=True)
         result = client.execute(query)
+
         try:
             route_id = result["routes"][0]["gtfsId"].replace("HSL:", "")
         except (KeyError, IndexError, AttributeError):
             raise ValueError("No valid ID found for route {route}")
+
         return f"/hfp/v2/journey/ongoing/vp/+/+/+/{route_id}/#"
 
     def on_message(self, client, userdata, msg):
@@ -120,18 +125,21 @@ class Bot:
                 self.handle_vehicle_outside_area(key)
 
             self.remove_expired_vehicles()
+
         except InvalidCoordinateError:
             self.logger.debug(f"Invalid coordinates from {key} in {message}, ignoring")
+
         except Exception as e:
             self.logger.exception(e)
 
-    def handle_vehicle_within_area(self, vehicle_key, message):
+    def handle_vehicle_within_area(self, vehicle_key: VehicleKey, message: dict):
         if not vehicle_key in self.vehicles:
             self.logger.info(f"{vehicle_key} has entered the monitored area")
             self.vehicles[vehicle_key] = MonitoredVehicle()
+
         self.vehicles[vehicle_key].add_position_message(message)
 
-    def handle_vehicle_outside_area(self, vehicle_key):
+    def handle_vehicle_outside_area(self, vehicle_key: VehicleKey):
         if vehicle_key not in self.vehicles:
             return
 
@@ -151,20 +159,14 @@ class Bot:
             self.post_route_to_twitter(filename, title)
             self.remove_file(filename)
 
-    def get_vehicle_key(self, topic, message):
+    def get_vehicle_key(self, topic: str, message: dict):
         route_name = self.get_route_name(topic)
-        return VehicleKey(
-            route_name,
-            message["oper"],
-            message["veh"],
-            message["oday"],
-            message["start"],
-        )
+        return VehicleKey(route_name, message["oday"], message["start"])
 
-    def get_route_name(self, mqtt_topic):
+    def get_route_name(self, mqtt_topic: str):
         return mqtt_topic.split("/")[11]
 
-    def is_within_area(self, message):
+    def is_within_area(self, message: dict):
         try:
             return (
                 self.area.south <= message["lat"] <= self.area.north
@@ -180,10 +182,10 @@ class Bot:
                 self.logger.info(f"Dropping expired data from {key}")
                 self.vehicles.pop(key)
 
-    def is_expired(self, vehicle):
+    def is_expired(self, vehicle: MonitoredVehicle):
         return self.max_timestamp - vehicle.max_timestamp >= Bot.EXPIRATION_SECONDS
 
-    def post_route_to_twitter(self, filename, title):
+    def post_route_to_twitter(self, filename: str, title: str):
         self.logger.info(f"Posting {filename} to Twitter")
         auth = tweepy.OAuthHandler(self.api_key, self.api_key_secret)
         auth.set_access_token(self.access_token, self.access_token_secret)
@@ -198,6 +200,6 @@ class Bot:
         client.create_tweet(text=title, media_ids=[media.media_id])
         self.logger.info(f"Posted {filename} to Twitter")
 
-    def remove_file(self, filename):
+    def remove_file(self, filename: str):
         self.logger.info(f"Removing {filename}")
         os.remove(filename)
