@@ -206,18 +206,19 @@ class Bot:
 
         plot_id = str(uuid.uuid4())
         plot_filename = self.plot_directory / (plot_id + ".png")
+        self.logger.info(f"Saving plot to {plot_filename}")
         title = plot_route_to_file(
             route_name, position_messages, self.area, plot_filename
         )
-        self.logger.info(f"Saved plot to {plot_filename}")
 
         if self.dump_json:
             json_filename = self.json_directory / (plot_id + ".json")
+            self.logger.info(f"Saving JSON data to {json_filename}")
             with open(json_filename, "w") as f:
                 f.write(json.dumps(position_messages))
-            self.logger.info(f"Saved JSON data to {json_filename}")
 
         if self.send_tweets:
+            self.logger.info(f"Sending {plot_filename} to Twitter")
             twitter.send_tweet(title, plot_filename, self.twitter_credentials)
             self.remove_file(plot_filename)
 
