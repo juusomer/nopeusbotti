@@ -66,15 +66,15 @@ plt.style.use("seaborn-darkgrid")
     default="plots",
 )
 @click.option(
-    "--dump-json",
-    help="If set, the messages used to draw each plot will be stored in the specified directory (--json-directory)",
+    "--write-csv",
+    help="If set, the data used to draw each plot will be written in the specified directory (--csv-directory)",
     is_flag=True,
     default=False,
 )
 @click.option(
-    "--json-directory",
-    help="The directory for storing the JSON messages if --dump-json is specified",
-    default="messages",
+    "--csv-directory",
+    help="The directory for storing the data if --store-csv is specified",
+    default="data",
 )
 def main(
     north,
@@ -85,16 +85,16 @@ def main(
     route,
     no_tweets,
     plot_directory,
-    dump_json,
-    json_directory,
+    write_csv,
+    csv_directory,
 ):
     bot = Bot(
         area=Area(north, south, east, west, speed_limit),
         routes=route,
         send_tweets=not no_tweets,
         plot_directory=Path(plot_directory),
-        dump_json=dump_json,
-        json_directory=Path(json_directory),
+        write_csv=write_csv,
+        csv_directory=Path(csv_directory),
     )
     bot.run()
 

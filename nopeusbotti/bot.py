@@ -10,8 +10,8 @@ import paho.mqtt.client as mqtt
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
-import nopeusbotti.twitter as twitter
-from nopeusbotti.plots import plot_route_to_file
+from nopeusbotti import twitter
+from nopeusbotti.analysis import plots, position_data
 
 
 @dataclass(frozen=True)
@@ -67,8 +67,8 @@ class Bot:
         routes: List[str],
         send_tweets: bool,
         plot_directory: Path,
-        dump_json: bool,
-        json_directory: Path,
+        write_csv: bool,
+        csv_directory: Path,
     ):
         self.max_timestamp = 0
         self.vehicles: Dict[Vehicle, VehicleData] = {}
@@ -77,8 +77,8 @@ class Bot:
         self.send_tweets = send_tweets
 
         self.plot_directory = plot_directory
-        self.dump_json = dump_json
-        self.json_directory = json_directory
+        self.write_csv = write_csv
+        self.csv_directory = csv_directory
 
         self.logger = logging.getLogger(__name__)
 
@@ -97,11 +97,11 @@ class Bot:
                 "Run with --no-tweets: only producing figures, will not send any tweets"
             )
 
-        if self.dump_json:
+        if self.write_csv:
             self.logger.info(
-                f"Run with --dump-json: producing the data used for plots to '{self.json_directory}'"
+                f"Run with --store-csv: producing the data used for plots to '{self.csv_directory}'"
             )
-            self.create_directory(self.json_directory)
+            self.create_directory(self.csv_directory)
 
         self.create_directory(self.plot_directory)
 
@@ -121,7 +121,7 @@ class Bot:
             client.subscribe(topic)
 
     @lru_cache
-    def get_mqtt_topic(self, route_number: str):
+    def get_mqtt_topic(self, route_number: str) -> str:
         """Get the name of the MQTT topic based on route number
 
         The topic name is fetched from the HSL GraphQL API. If no
@@ -196,6 +196,7 @@ class Bot:
 
         route_name = vehicle_key.route_name
         position_messages = self.vehicles.pop(vehicle_key).position_messages
+        route_data = position_data.messages_to_dataframe(position_messages)
 
         if len(position_messages) <= Bot.MESSAGE_COUNT_MIN:
             raise ValueError(
@@ -203,30 +204,27 @@ class Bot:
             )
 
         self.logger.info(f"{vehicle_key} has left the area, plotting route")
-
-        plot_id = str(uuid.uuid4())
-        plot_filename = self.plot_directory / (plot_id + ".png")
-        self.logger.info(f"Saving plot to {plot_filename}")
-        title = plot_route_to_file(
-            route_name, position_messages, self.area, plot_filename
+        plot_filename = self.plot_directory / (str(uuid.uuid4()) + ".png")
+        self.logger.info(f"Saving plot to '{plot_filename}'")
+        title = plots.plot_route_to_file(
+            route_name, route_data, self.area.speed_limit, plot_filename
         )
 
-        if self.dump_json:
-            json_filename = self.json_directory / (plot_id + ".json")
-            self.logger.info(f"Saving JSON data to {json_filename}")
-            with open(json_filename, "w") as f:
-                f.write(json.dumps(position_messages))
+        if self.write_csv:
+            csv_filename = self.csv_directory / (vehicle_key.operating_day + ".csv")
+            self.logger.info(f"Saving data to '{csv_filename}'")
+            position_data.write_to_csv(route_data, csv_filename)
 
         if self.send_tweets:
             self.logger.info(f"Sending {plot_filename} to Twitter")
             twitter.send_tweet(title, plot_filename, self.twitter_credentials)
             self.remove_file(plot_filename)
 
-    def get_vehicle_key(self, topic: str, message: dict):
+    def get_vehicle_key(self, topic: str, message: dict) -> Vehicle:
         route_name = self.get_route_name(topic)
         return Vehicle(message["desi"], route_name, message["oday"], message["start"])
 
-    def get_route_name(self, mqtt_topic: str):
+    def get_route_name(self, mqtt_topic: str) -> str:
         return mqtt_topic.split("/")[11]
 
     def is_within_area(self, message: dict):
@@ -257,7 +255,7 @@ class Bot:
                 self.logger.warn(f"Dropping expired data from {key}")
                 self.vehicles.pop(key)
 
-    def is_expired(self, vehicle: VehicleData):
+    def is_expired(self, vehicle: VehicleData) -> bool:
         return self.max_timestamp - vehicle.max_timestamp >= Bot.EXPIRATION_SECONDS
 
     def create_directory(self, directory: Path):
