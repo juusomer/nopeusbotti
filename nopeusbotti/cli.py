@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from gql.transport.aiohttp import log as gql_logger
 
 from nopeusbotti.bot import Area, Bot
+from nopeusbotti.statistics import generate_weekly_statistics
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -121,10 +122,10 @@ def run_bot(
     help="The directory for storing the data if --store-csv is specified",
     default="data",
 )
-def produce_weekly_statistics(
+def run_statistics(
     speed_limit,
     no_tweets,
     plot_directory,
     csv_directory,
 ):
-    pass
+    generate_weekly_statistics(speed_limit, no_tweets, plot_directory, csv_directory)

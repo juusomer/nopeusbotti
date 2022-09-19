@@ -24,6 +24,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 nopeusbotti = 'nopeusbotti.cli:run_bot'
+nopeusbotti-statistics = 'nopeusbotti.cli:run_statistics'
 
 [tool.isort]
 profile = "black"
