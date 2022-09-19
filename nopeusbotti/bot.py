@@ -6,12 +6,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
 
-import paho.mqtt.client as mqtt
-from gql import Client, gql
-from gql.transport.aiohttp import AIOHTTPTransport
-
-from nopeusbotti import twitter
-from nopeusbotti.analysis import plots, position_data
+from nopeusbotti.analysis import position_data
+from nopeusbotti.api import hsl, twitter
+from nopeusbotti.plots.route import plot_route_to_file
 
 
 @dataclass(frozen=True)
@@ -46,14 +43,6 @@ class InvalidCoordinateError(ValueError):
 
 
 class Bot:
-
-    MQTT_BROKER_URL = "mqtt.hsl.fi"
-    MQTT_BROKER_PORT = 8883
-    MQTT_KEEPALIVE = 60
-
-    ROUTE_GRAPHQL_URL = (
-        "https://api.digitransit.fi/routing/v1/routers/hsl/index/graphql"
-    )
 
     # Required message count for plots
     MESSAGE_COUNT_MIN = 10
@@ -105,42 +94,25 @@ class Bot:
 
         self.create_directory(self.plot_directory)
 
-        client = mqtt.Client()
-        client.tls_set()
-        client.on_connect = self.on_connect
-        client.on_message = self.on_message
-        client.connect(Bot.MQTT_BROKER_URL, Bot.MQTT_BROKER_PORT, Bot.MQTT_KEEPALIVE)
-        client.loop_forever()
+        hsl.process_position_messages(self.on_connect, self.on_message)
 
     def on_connect(self, client, userdata, flags, rc):
         """Subscribe to relevant topics upon MQTT connection"""
         self.logger.info(f"Client connected (rc = {rc})")
         for route in self.routes:
-            topic = self.get_mqtt_topic(route)
+            topic = self.get_route_mqtt_topic(route)
             self.logger.info(f"Subscribing to {topic}")
             client.subscribe(topic)
 
     @lru_cache
-    def get_mqtt_topic(self, route_number: str) -> str:
+    def get_route_mqtt_topic(self, route_number: str) -> str:
         """Get the name of the MQTT topic based on route number
 
         The topic name is fetched from the HSL GraphQL API. If no
         matching bus is found for the route id, this method raises
         a ValueError.
         """
-        query = gql(
-            f"""
-            {{
-                routes(name: "{route_number}", transportModes: BUS) {{
-                    gtfsId
-                }}
-            }}
-            """
-        )
-
-        transport = AIOHTTPTransport(url=Bot.ROUTE_GRAPHQL_URL)
-        client = Client(transport=transport, fetch_schema_from_transport=True)
-        result = client.execute(query)
+        result = hsl.get_route(route_number)
 
         try:
             route_id = result["routes"][0]["gtfsId"].replace("HSL:", "")
@@ -205,14 +177,14 @@ class Bot:
 
         self.logger.info(f"{vehicle_key} has left the area, plotting route")
         plot_filename = self.plot_directory / (str(uuid.uuid4()) + ".png")
-        self.logger.info(f"Saving plot to '{plot_filename}'")
-        title = plots.plot_route_to_file(
-            route_name, route_data, self.area.speed_limit, plot_filename
+        self.logger.info(f"Saving plot to {plot_filename}")
+        title = plot_route_to_file(
+            route_data, route_name, self.area.speed_limit, plot_filename
         )
 
         if self.write_csv:
             csv_filename = self.csv_directory / (vehicle_key.operating_day + ".csv")
-            self.logger.info(f"Saving data to '{csv_filename}'")
+            self.logger.info(f"Saving data to {csv_filename}")
             position_data.write_to_csv(route_data, csv_filename)
 
         if self.send_tweets:
@@ -259,9 +231,9 @@ class Bot:
         return self.max_timestamp - vehicle.max_timestamp >= Bot.EXPIRATION_SECONDS
 
     def create_directory(self, directory: Path):
-        self.logger.info(f"Creating directory '{directory}'")
+        self.logger.info(f"Creating directory {directory}")
         Path(directory).mkdir(parents=True, exist_ok=True)
 
     def remove_file(self, file_path: Path):
-        self.logger.info(f"Removing file '{file_path}'")
+        self.logger.info(f"Removing file {file_path}")
         file_path.unlink()

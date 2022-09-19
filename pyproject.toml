@@ -23,7 +23,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-nopeusbotti = 'nopeusbotti.cli:main'
+nopeusbotti = 'nopeusbotti.cli:run_bot'
 
 [tool.isort]
 profile = "black"

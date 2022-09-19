@@ -2,10 +2,10 @@ import contextily as cx
 import matplotlib
 import matplotlib.pyplot as plt
 
-SPEEDING_LIMIT = 4.0
+from nopeusbotti.analysis import constants
 
 
-def plot_route_to_file(route_name, route_data, speed_limit, path):
+def plot_route_to_file(route_data, route_name, speed_limit, path):
     plot_route_speed_and_map(route_data, speed_limit)
 
     sample = route_data.iloc[0]
@@ -17,7 +17,7 @@ def plot_route_to_file(route_name, route_data, speed_limit, path):
 
     title = title = f"Linja {route_number} ({route_name}) - lähtö {time}. "
 
-    if speeding >= SPEEDING_LIMIT:
+    if speeding >= constants.SPEEDING_THRESHOLD:
         title += f"Suurin ylinopeus {speeding:.1f} km/h ({100 * speeding_proportional:.0f}%)."
     elif speeding > 0:
         title += "Ei huomattavaa ylinopeutta."

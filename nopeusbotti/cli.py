@@ -76,7 +76,7 @@ plt.style.use("seaborn-darkgrid")
     help="The directory for storing the data if --store-csv is specified",
     default="data",
 )
-def main(
+def run_bot(
     north,
     south,
     east,
@@ -97,7 +97,3 @@ def main(
         csv_directory=Path(csv_directory),
     )
     bot.run()
-
-
-if __name__ == "__main__":
-    main()
