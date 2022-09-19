@@ -97,3 +97,34 @@ def run_bot(
         csv_directory=Path(csv_directory),
     )
     bot.run()
+
+
+@click.option(
+    "--speed-limit",
+    help="Speed limit withing the monitored area",
+    type=float,
+    required=True,
+)
+@click.option(
+    "--plot-directory",
+    help="The directory for storing the plotted figures. Unless --no-tweets is specified, the figures are only stored here temporarily before publishing to twitter.",
+    default="plots",
+)
+@click.option(
+    "--no-tweets",
+    help="If set, do not send any tweets, only produce the figures (for testing purposes).",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--csv-directory",
+    help="The directory for storing the data if --store-csv is specified",
+    default="data",
+)
+def produce_weekly_statistics(
+    speed_limit,
+    no_tweets,
+    plot_directory,
+    csv_directory,
+):
+    pass

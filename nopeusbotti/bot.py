@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
-from nopeusbotti.analysis import position_data
 from nopeusbotti.api import hsl, twitter
+from nopeusbotti.data import vehicle_positions
 from nopeusbotti.plots.route import plot_route_to_file
 
 
@@ -150,7 +150,7 @@ class Bot:
 
         route_name = vehicle_key.route_name
         position_messages = self.vehicles.pop(vehicle_key).position_messages
-        route_data = position_data.messages_to_dataframe(position_messages)
+        route_data = vehicle_positions.messages_to_dataframe(position_messages)
 
         if len(position_messages) <= Bot.MESSAGE_COUNT_MIN:
             raise ValueError(
@@ -167,7 +167,7 @@ class Bot:
         if self.write_csv:
             csv_filename = self.csv_directory / (vehicle_key.operating_day + ".csv")
             self.logger.info(f"Saving data to {csv_filename}")
-            position_data.write_to_csv(route_data, csv_filename)
+            vehicle_positions.write_to_csv(route_data, csv_filename)
 
         if self.send_tweets:
             self.logger.info(f"Sending {plot_filename} to Twitter")

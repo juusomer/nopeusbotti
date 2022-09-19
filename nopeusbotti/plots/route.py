@@ -2,7 +2,7 @@ import contextily as cx
 import matplotlib
 import matplotlib.pyplot as plt
 
-from nopeusbotti.analysis import constants
+from nopeusbotti.data import constants
 
 
 def plot_route_to_file(route_data, route_name, speed_limit, path):
