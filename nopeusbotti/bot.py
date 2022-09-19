@@ -143,7 +143,10 @@ class Bot:
         result = client.execute(query)
 
         try:
-            route_id = result["routes"][0]["gtfsId"].replace("HSL:", "")
+            for r in result["routes"]:
+                if r["gtfsId"].endswith(route_number):
+                    route_id = r["gtfsId"].replace("HSL:", "")
+                    break
         except (KeyError, IndexError, AttributeError):
             raise ValueError("No valid ID found for route {route}")
 
