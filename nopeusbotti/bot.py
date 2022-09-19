@@ -2,7 +2,6 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
 
@@ -100,29 +99,9 @@ class Bot:
         """Subscribe to relevant topics upon MQTT connection"""
         self.logger.info(f"Client connected (rc = {rc})")
         for route in self.routes:
-            topic = self.get_route_mqtt_topic(route)
+            topic = hsl.get_route_mqtt_topic(route)
             self.logger.info(f"Subscribing to {topic}")
             client.subscribe(topic)
-
-    @lru_cache
-    def get_route_mqtt_topic(self, route_number: str) -> str:
-        """Get the name of the MQTT topic based on route number
-
-        The topic name is fetched from the HSL GraphQL API. If no
-        matching bus is found for the route id, this method raises
-        a ValueError.
-        """
-        result = hsl.get_route(route_number)
-
-        try:
-            for r in result["routes"]:
-                if r["gtfsId"].endswith(route_number):
-                    route_id = r["gtfsId"].replace("HSL:", "")
-                    break
-        except (KeyError, IndexError, AttributeError):
-            raise ValueError("No valid ID found for route {route}")
-
-        return f"/hfp/v2/journey/ongoing/vp/+/+/+/{route_id}/#"
 
     def on_message(self, client, userdata, msg):
         """Handle an incoming MQTT message
