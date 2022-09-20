@@ -23,21 +23,6 @@ class Credentials:
         )
 
 
-def with_credentials(func):
-    """Set credentials parameter from environment if not specified"""
-
-    @functools.wraps(func)
-    def add_credentials_from_env(
-        credentials: Optional[Credentials] = None, *args, **kwargs
-    ):
-        if credentials is None:
-            credentials = Credentials.from_environment()
-        return func(*args, **kwargs, credentials=credentials)
-
-    return add_credentials_from_env
-
-
-@with_credentials
 def get_client(credentials: Optional[Credentials] = None):
     return tweepy.Client(
         consumer_key=credentials.api_key,
@@ -47,12 +32,14 @@ def get_client(credentials: Optional[Credentials] = None):
     )
 
 
-@with_credentials
 def send_tweet(
     text: str,
     media_filename: Optional[str] = None,
     credentials: Optional[Credentials] = None,
 ):
+    if credentials is None:
+        credentials = Credentials.from_environment()
+
     if media_filename is not None:
         media_ids = [upload_media(media_filename, credentials).media_id]
     else:
@@ -62,7 +49,6 @@ def send_tweet(
     client.create_tweet(text=text, media_ids=media_ids)
 
 
-@with_credentials
 def get_username(credentials: Optional[Credentials] = None):
     if credentials is None:
         credentials = Credentials.from_environment()
@@ -70,7 +56,6 @@ def get_username(credentials: Optional[Credentials] = None):
     return get_client(credentials).get_me().data.username
 
 
-@with_credentials
 def upload_media(media_filename: str, credentials: Optional[Credentials] = None):
     auth = tweepy.OAuthHandler(credentials.api_key, credentials.api_key_secret)
     auth.set_access_token(credentials.access_token, credentials.access_token_secret)
