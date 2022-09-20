@@ -20,7 +20,7 @@ def process_position_messages(on_connect, on_message):
     client.loop_forever()
 
 
-def get_route_mqtt_topic(self, route_number: str) -> str:
+def get_route_mqtt_topic(route_number: str) -> str:
     """Get the name of the MQTT topic based on route number
 
     The topic name is fetched from the HSL GraphQL API. If no

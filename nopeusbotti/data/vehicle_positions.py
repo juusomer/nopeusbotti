@@ -44,6 +44,7 @@ def write_to_csv(df: gpd.GeoDataFrame, path: Path):
 def read_from_csv(*paths: Path):
     df = pd.concat(pd.read_csv(path) for path in paths)
     df.loc[:, "time"] = pd.to_datetime(df.time)
+    df.loc[:, "route_number"] = df.route_number.astype(str)
     df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.long, df.lat))
     df.crs = "EPSG:4326"
     return df.set_index("time").sort_index()

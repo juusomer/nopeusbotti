@@ -4,10 +4,11 @@ from pathlib import Path
 import click
 import matplotlib
 import matplotlib.pyplot as plt
+import pandas as pd
 from gql.transport.aiohttp import log as gql_logger
 
 from nopeusbotti.bot import Area, Bot
-from nopeusbotti.statistics import generate_weekly_statistics
+from nopeusbotti.statistics import generate_statistics
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -77,7 +78,7 @@ plt.style.use("seaborn-darkgrid")
     help="The directory for storing the data if --store-csv is specified",
     default="data",
 )
-def run_bot(
+def nopeusbotti(
     north,
     south,
     east,
@@ -100,6 +101,7 @@ def run_bot(
     bot.run()
 
 
+@click.command()
 @click.option(
     "--speed-limit",
     help="Speed limit withing the monitored area",
@@ -122,10 +124,29 @@ def run_bot(
     help="The directory for storing the data if --store-csv is specified",
     default="data",
 )
-def run_statistics(
+@click.option(
+    "--start-date",
+    help="The start time for the statistics producer in format YYYY-MM-DD (defaults to last week's Monday)",
+    default=None,
+)
+@click.option(
+    "--end-date",
+    help="The start time for the statistics producer in format YYYY-MM-DD (defaults to start date + 6 days)",
+    default=None,
+)
+def nopeusbotti_statistics(
     speed_limit,
     no_tweets,
     plot_directory,
     csv_directory,
+    start_date,
+    end_date,
 ):
-    generate_weekly_statistics(speed_limit, no_tweets, plot_directory, csv_directory)
+    generate_statistics(
+        speed_limit,
+        no_tweets,
+        Path(plot_directory),
+        Path(csv_directory),
+        pd.Timestamp(start_date) if start_date is not None else None,
+        pd.Timestamp(end_date) if end_date is not None else None,
+    )
