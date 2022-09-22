@@ -1,3 +1,4 @@
+import functools
 import os
 from dataclasses import dataclass
 from typing import Optional
@@ -22,6 +23,15 @@ class Credentials:
         )
 
 
+def get_client(credentials: Optional[Credentials] = None):
+    return tweepy.Client(
+        consumer_key=credentials.api_key,
+        consumer_secret=credentials.api_key_secret,
+        access_token=credentials.access_token,
+        access_token_secret=credentials.access_token_secret,
+    )
+
+
 def send_tweet(
     text: str,
     media_filename: Optional[str] = None,
@@ -30,22 +40,23 @@ def send_tweet(
     if credentials is None:
         credentials = Credentials.from_environment()
 
-    media_ids = None
-
     if media_filename is not None:
         media_ids = [upload_media(media_filename, credentials).media_id]
+    else:
+        media_ids = None
 
-    client = tweepy.Client(
-        consumer_key=credentials.api_key,
-        consumer_secret=credentials.api_key_secret,
-        access_token=credentials.access_token,
-        access_token_secret=credentials.access_token_secret,
-    )
-
-    client.create_tweet(text=text, media_ids=media_ids)
+    client = get_client(credentials)
+    return client.create_tweet(text=text, media_ids=media_ids)
 
 
-def upload_media(media_filename: str, credentials: Credentials):
+def get_username(credentials: Optional[Credentials] = None):
+    if credentials is None:
+        credentials = Credentials.from_environment()
+
+    return get_client(credentials).get_me().data.username
+
+
+def upload_media(media_filename: str, credentials: Optional[Credentials] = None):
     auth = tweepy.OAuthHandler(credentials.api_key, credentials.api_key_secret)
     auth.set_access_token(credentials.access_token, credentials.access_token_secret)
     api = tweepy.API(auth)

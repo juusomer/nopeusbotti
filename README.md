@@ -1,6 +1,6 @@
 # nopeusbotti
 
-A Twitter bot that plots the velocities of HSL buses. The data is from [HSL Vehicle Positions API](https://digitransit.fi/en/developers/apis/4-realtime-api/vehicle-positions/) (© Helsinki Region Transport, 2022).
+A Twitter bot that plots the velocities of HSL buses. The data is from [HSL Vehicle Positions API](https://digitransit.fi/en/developers/apis/4-realtime-api/vehicle-positions/) (© Helsinki Region Transport, 2022). **NOTE:** Starting from 3.4.2023 the APIs will require registration and API keys (https://digitransit.fi/en/developers/api-registration/), which is not supported by this project. The terms of use have also been updated. Please review the changes at https://digitransit.fi/en/developers/apis/6-terms-of-use/.
 
 # Installation
 
@@ -16,33 +16,12 @@ to install all the dependencies in a virtualenv.
 
 # Running
 
+## Running the Bot
+
 After installing the dependencies, the bot can be run with
 
-```
-poetry run nopeusbotti [OPTIONS]
-
-Options:
-  --north FLOAT          The northernmost latitude coordinate (EPSG:4326 /
-                         WGS84) of the monitored area  [required]
-  --south FLOAT          The southernmost latitude coordinate (EPSG:4326 /
-                         WGS84) of the monitored area  [required]
-  --east FLOAT           The easternmost longitude coordinate  (EPSG:4326 /
-                         WGS84) of the monitored area  [required]
-  --west FLOAT           The westernmost longitude coordinate  (EPSG:4326 /
-                         WGS84) of the monitored area  [required]
-  --speed-limit FLOAT    Speed limit withing the monitored area  [required]
-  --route TEXT           The routes to track. This option can be repeated as
-                         many times as needed.  [required]
-  --no-tweets            If set, do not send any tweets, only produce the
-                         figures (for testing purposes).
-  --plot-directory TEXT  The directory for storing the plotted figures. Unless
-                         --no-tweets is specified, the figures are only stored
-                         here temporarily before publishing to twitter.
-  --dump-json            If set, the messages used to draw each plot will be
-                         stored in the specified directory (--json-directory)
-  --json-directory TEXT  The directory for storing the JSON messages if
-                         --dump-json is specified
-  --help                 Show this message and exit.
+```bash
+poetry run nopeusbotti --help
 ```
 
 Unless `--no-tweets` is set, the following Twitter API credentials must be provided as environment variables:
@@ -71,3 +50,13 @@ runs the bot as seen on https://twitter.com/30bussit:
 - the speed limit is monitored within the depicted area:
 
 ![An example of monitored area](/img/area.PNG)
+
+## Producing Weekly Statistics
+
+The repository also contains a script that produces weekly statistics that can e.g. be configured to run as a cron job every Monday. It can be run with:
+
+```bash
+poetry run nopeusbotti-statistics --help
+```
+
+**NOTE:** In order to produce the weekly statistics, the bot must be run with `--write-csv`, and the `--csv-directory` must be specified to the same path for both commands.

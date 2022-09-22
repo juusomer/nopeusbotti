@@ -2,16 +2,12 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
 
-import paho.mqtt.client as mqtt
-from gql import Client, gql
-from gql.transport.aiohttp import AIOHTTPTransport
-
-import nopeusbotti.twitter as twitter
-from nopeusbotti.plots import plot_route_to_file
+from nopeusbotti.api import hsl, twitter
+from nopeusbotti.data import vehicle_positions
+from nopeusbotti.plots.route import plot_route_to_file
 
 
 @dataclass(frozen=True)
@@ -47,14 +43,6 @@ class InvalidCoordinateError(ValueError):
 
 class Bot:
 
-    MQTT_BROKER_URL = "mqtt.hsl.fi"
-    MQTT_BROKER_PORT = 8883
-    MQTT_KEEPALIVE = 60
-
-    ROUTE_GRAPHQL_URL = (
-        "https://api.digitransit.fi/routing/v1/routers/hsl/index/graphql"
-    )
-
     # Required message count for plots
     MESSAGE_COUNT_MIN = 10
 
@@ -67,8 +55,8 @@ class Bot:
         routes: List[str],
         send_tweets: bool,
         plot_directory: Path,
-        dump_json: bool,
-        json_directory: Path,
+        write_csv: bool,
+        csv_directory: Path,
     ):
         self.max_timestamp = 0
         self.vehicles: Dict[Vehicle, VehicleData] = {}
@@ -77,8 +65,8 @@ class Bot:
         self.send_tweets = send_tweets
 
         self.plot_directory = plot_directory
-        self.dump_json = dump_json
-        self.json_directory = json_directory
+        self.write_csv = write_csv
+        self.csv_directory = csv_directory
 
         self.logger = logging.getLogger(__name__)
 
@@ -97,60 +85,23 @@ class Bot:
                 "Run with --no-tweets: only producing figures, will not send any tweets"
             )
 
-        if self.dump_json:
+        if self.write_csv:
             self.logger.info(
-                f"Run with --dump-json: producing the data used for plots to '{self.json_directory}'"
+                f"Run with --store-csv: producing the data used for plots to '{self.csv_directory}'"
             )
-            self.create_directory(self.json_directory)
+            self.create_directory(self.csv_directory)
 
         self.create_directory(self.plot_directory)
 
-        client = mqtt.Client()
-        client.tls_set()
-        client.on_connect = self.on_connect
-        client.on_message = self.on_message
-        client.connect(Bot.MQTT_BROKER_URL, Bot.MQTT_BROKER_PORT, Bot.MQTT_KEEPALIVE)
-        client.loop_forever()
+        hsl.process_position_messages(self.on_connect, self.on_message)
 
     def on_connect(self, client, userdata, flags, rc):
         """Subscribe to relevant topics upon MQTT connection"""
         self.logger.info(f"Client connected (rc = {rc})")
         for route in self.routes:
-            topic = self.get_mqtt_topic(route)
+            topic = hsl.get_route_mqtt_topic(route)
             self.logger.info(f"Subscribing to {topic}")
             client.subscribe(topic)
-
-    @lru_cache
-    def get_mqtt_topic(self, route_number: str):
-        """Get the name of the MQTT topic based on route number
-
-        The topic name is fetched from the HSL GraphQL API. If no
-        matching bus is found for the route id, this method raises
-        a ValueError.
-        """
-        query = gql(
-            f"""
-            {{
-                routes(name: "{route_number}", transportModes: BUS) {{
-                    gtfsId
-                }}
-            }}
-            """
-        )
-
-        transport = AIOHTTPTransport(url=Bot.ROUTE_GRAPHQL_URL)
-        client = Client(transport=transport, fetch_schema_from_transport=True)
-        result = client.execute(query)
-
-        try:
-            for r in result["routes"]:
-                if r["gtfsId"].endswith(route_number):
-                    route_id = r["gtfsId"].replace("HSL:", "")
-                    break
-        except (KeyError, IndexError, AttributeError):
-            raise ValueError("No valid ID found for route {route}")
-
-        return f"/hfp/v2/journey/ongoing/vp/+/+/+/{route_id}/#"
 
     def on_message(self, client, userdata, msg):
         """Handle an incoming MQTT message
@@ -199,6 +150,7 @@ class Bot:
 
         route_name = vehicle_key.route_name
         position_messages = self.vehicles.pop(vehicle_key).position_messages
+        route_data = vehicle_positions.messages_to_dataframe(position_messages)
 
         if len(position_messages) <= Bot.MESSAGE_COUNT_MIN:
             raise ValueError(
@@ -206,30 +158,30 @@ class Bot:
             )
 
         self.logger.info(f"{vehicle_key} has left the area, plotting route")
-
-        plot_id = str(uuid.uuid4())
-        plot_filename = self.plot_directory / (plot_id + ".png")
+        plot_filename = self.plot_directory / (str(uuid.uuid4()) + ".png")
         self.logger.info(f"Saving plot to {plot_filename}")
         title = plot_route_to_file(
-            route_name, position_messages, self.area, plot_filename
+            route_data, route_name, self.area.speed_limit, plot_filename
         )
-
-        if self.dump_json:
-            json_filename = self.json_directory / (plot_id + ".json")
-            self.logger.info(f"Saving JSON data to {json_filename}")
-            with open(json_filename, "w") as f:
-                f.write(json.dumps(position_messages))
 
         if self.send_tweets:
             self.logger.info(f"Sending {plot_filename} to Twitter")
-            twitter.send_tweet(title, plot_filename, self.twitter_credentials)
+            response = twitter.send_tweet(
+                title, plot_filename, self.twitter_credentials
+            )
+            route_data = route_data.assign(tweet_id=response.data.id)
             self.remove_file(plot_filename)
 
-    def get_vehicle_key(self, topic: str, message: dict):
+        if self.write_csv:
+            csv_filename = self.csv_directory / (vehicle_key.operating_day + ".csv")
+            self.logger.info(f"Saving data to {csv_filename}")
+            vehicle_positions.write_to_csv(route_data, csv_filename)
+
+    def get_vehicle_key(self, topic: str, message: dict) -> Vehicle:
         route_name = self.get_route_name(topic)
         return Vehicle(message["desi"], route_name, message["oday"], message["start"])
 
-    def get_route_name(self, mqtt_topic: str):
+    def get_route_name(self, mqtt_topic: str) -> str:
         return mqtt_topic.split("/")[11]
 
     def is_within_area(self, message: dict):
@@ -260,13 +212,13 @@ class Bot:
                 self.logger.warn(f"Dropping expired data from {key}")
                 self.vehicles.pop(key)
 
-    def is_expired(self, vehicle: VehicleData):
+    def is_expired(self, vehicle: VehicleData) -> bool:
         return self.max_timestamp - vehicle.max_timestamp >= Bot.EXPIRATION_SECONDS
 
     def create_directory(self, directory: Path):
-        self.logger.info(f"Creating directory '{directory}'")
+        self.logger.info(f"Creating directory {directory}")
         Path(directory).mkdir(parents=True, exist_ok=True)
 
     def remove_file(self, file_path: Path):
-        self.logger.info(f"Removing file '{file_path}'")
+        self.logger.info(f"Removing file {file_path}")
         file_path.unlink()
