@@ -169,7 +169,7 @@ class Bot:
             response = twitter.send_tweet(
                 title, plot_filename, self.twitter_credentials
             )
-            route_data = route_data.assign(tweet_id=response.data.id)
+            route_data = route_data.assign(tweet_id=response.data["id"])
             self.remove_file(plot_filename)
 
         if self.write_csv:
